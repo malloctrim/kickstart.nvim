@@ -97,6 +97,8 @@ vim.g.have_nerd_font = false
 -- See `:help vim.opt`
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
+--
+vim.opt.textwidth = 120
 
 -- Make line numbers default
 vim.opt.number = true
@@ -163,6 +165,12 @@ vim.opt.confirm = true
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
+--
+
+vim.keymap.set('n', '<M-Up>', ':resize +2<CR>')
+vim.keymap.set('n', '<M-Down>', ':resize -2<CR>')
+vim.keymap.set('n', '<M-Left>', ':vertical resize -2<CR>')
+vim.keymap.set('n', '<M-Right>', ':vertical resize +2<CR>')
 
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
@@ -241,13 +249,84 @@ require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
+  {
+    'akinsho/flutter-tools.nvim',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'stevearc/dressing.nvim', -- optioneel, voor betere UI
+      'mfussenegger/nvim-dap', -- voor debugging
+    },
+    config = function()
+      require('flutter-tools').setup {
+        debugger = {
+          enabled = true,
+          run_via_dap = true,
+        },
+        lsp = {
+          settings = {
+            lineLength = vim.o.textwidth,
+          },
+          on_attach = function(_, bufnr)
+            local map = vim.keymap.set
+            local opts = { buffer = bufnr, noremap = true, silent = true }
+
+            map('n', '<F5>', function()
+              require('dap').continue()
+            end, { buffer = bufnr })
+            map('n', '<F10>', function()
+              require('dap').step_over()
+            end, { buffer = bufnr })
+            map('n', '<F11>', function()
+              require('dap').step_into()
+            end, { buffer = bufnr })
+            map('n', '<F12>', function()
+              require('dap').step_out()
+            end, { buffer = bufnr })
+            map('n', '<Leader>b', function()
+              require('dap').toggle_breakpoint()
+            end, { buffer = bufnr })
+            map('n', '<Leader>dr', function()
+              require('dap').repl.open()
+            end, { buffer = bufnr })
+            -- Flutter specific keybindings
+            map('n', '<leader>fr', '<cmd>FlutterRun<cr>', vim.tbl_extend('force', opts, { desc = 'Flutter Run' }))
+            map('n', '<leader>fq', '<cmd>FlutterQuit<cr>', vim.tbl_extend('force', opts, { desc = 'Flutter Quit' }))
+            map('n', '<leader>dv', function()
+              require('dapui').eval()
+            end, vim.tbl_extend('force', opts, { desc = 'Dap Eval' }))
+            map('n', '<leader>fd', function()
+              require('dapui').toggle()
+            end, vim.tbl_extend('force', opts, { desc = 'Toggle DAP UI' }))
+          end,
+        },
+      }
+    end,
+  },
+
+  {
+    'rcarriga/nvim-dap-ui',
+    dependencies = { 'mfussenegger/nvim-dap', 'nvim-neotest/nvim-nio' },
+    config = function()
+      local dap, dapui = require 'dap', require 'dapui'
+      dapui.setup()
+      dap.listeners.after.event_initialized['dapui_config'] = function()
+        dapui.open()
+      end
+      dap.listeners.before.event_terminated['dapui_config'] = function()
+        dapui.close()
+      end
+      dap.listeners.before.event_exited['dapui_config'] = function()
+        dapui.close()
+      end
+    end,
+  },
+
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
   -- keys can be used to configure plugin behavior/loading/etc.
   --
   -- Use `opts = {}` to automatically pass options to a plugin's `setup()` function, forcing the plugin to be loaded.
   --
-
   -- Alternatively, use `config = function() ... end` for full control over the configuration.
   -- If you prefer to call `setup` explicitly, use:
   --    {
